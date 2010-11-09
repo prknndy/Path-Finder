@@ -18,31 +18,21 @@ namespace PathFinder
             return mesh;
         }
 
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="width">width of mesh in pixels</param>
+        /// <param name="height">height of mesh in pixels</param>
+        /// <param name="spacing">spacing between nodes in pixels</param>
+        /// <param name="rects">list of obstacles</param>
         public Mesh(int width, int height, int spacing, Queue<Rect> rects)
         {
-
-            // find smallest rectangle side
-            int minLength = 1000;
-            foreach (Rect rect in rects)
-            {
-                if (rect.Width < minLength)
-                {
-                    minLength = rect.Width;
-                }
-                if (rect.Height < minLength)
-                {
-                    minLength = rect.Height;
-                }
-            }
-            // set our spacing to shorter than that to avoid
-            // "skipping" over a obstacle
-            this.spacing = minLength - 1;
+            // Initialize node mesh
             this.spacing = spacing;
-            // Generate node mesh
             int meshWidth = width / spacing;
             int meshHeight = height / spacing;
             mesh = new GraphNode[meshWidth, meshHeight];
-
+            // Create node mesh
             for (int i_y = 0; i_y < meshHeight; i_y++)
             {
                 for (int i_x = 0; i_x < meshWidth; i_x++)
@@ -58,17 +48,31 @@ namespace PathFinder
                 }
             }
 
-            // Link mesh, removing solids
+            // Link mesh, removing solid (untraversable) nodes
+            // TODO: Move linking code to the above loop
+            // and automated reverse linking.
             for (int i_y = 1; i_y < (meshHeight - 1); i_y++)
             {
                 for (int i_x = 1; i_x < (meshWidth - 1); i_x++)
                 {
                     // left neighbor
-                    if (!mesh[(i_x - 1), i_y].Solid())
+                    if (!mesh[(i_x-1), i_y].Solid())
                         mesh[i_x, i_y].Neighbors.Add(mesh[(i_x-1), i_y]);
+                    // left-top neighbor
+                    if (!mesh[i_x-1, i_y-1].Solid())
+                        mesh[i_x, i_y].Neighbors.Add(mesh[i_x - 1, i_y-1]);
+                    // left-bottom neighbor
+                    if (!mesh[i_x-1, i_y+1].Solid())
+                        mesh[i_x, i_y].Neighbors.Add(mesh[i_x-1, i_y+1]);
                     // right neighbor
-                    if (!mesh[(i_x + 1), i_y].Solid())
-                        mesh[i_x, i_y].Neighbors.Add(mesh[(i_x+1), i_y]);
+                    if (!mesh[i_x + 1, i_y].Solid())
+                        mesh[i_x, i_y].Neighbors.Add(mesh[i_x+1, i_y]);
+                    // right-top neighbor
+                    if (!mesh[i_x+1, i_y-1].Solid())
+                        mesh[i_x, i_y].Neighbors.Add(mesh[i_x+1, i_y-1]);
+                    // right-bottom neighbor
+                    if (!mesh[i_x + 1, i_y+1].Solid())
+                        mesh[i_x, i_y].Neighbors.Add(mesh[i_x + 1, i_y+1]);
                     // top neighbor
                     if (!mesh[i_x, i_y - 1].Solid())
                         mesh[i_x, i_y].Neighbors.Add(mesh[i_x, i_y - 1]);
@@ -81,6 +85,12 @@ namespace PathFinder
 
         }
 
+        /// <summary>
+        /// Weighs each mesh node for a given start and end destination.
+        /// </summary>
+        /// <param name="startPoint"></param>
+        /// <param name="endPoint"></param>
+        /// <returns></returns>
         public LinkedList<GraphNode> WeighGraph(Point startPoint, Point endPoint)
         {
             // Identify (approx) starting and ending nodes
@@ -112,6 +122,12 @@ namespace PathFinder
 
         }
 
+        /// <summary>
+        /// Returns the path for the weighted mesh.
+        /// TODO: This should only be called if the 
+        /// mesh has been weighed. Fix.
+        /// </summary>
+        /// <returns></returns>
         public Queue<MapPoint> FindPath()
         {
             // Generate travel path
@@ -122,6 +138,13 @@ namespace PathFinder
 
         }
 
+        /// <summary>
+        /// Recursively finds the path from the starting node
+        /// to the ending node, adding each path node to
+        /// queue pQ.
+        /// </summary>
+        /// <param name="node"></param>
+        /// <param name="pQ"></param>
         public void Travel(GraphNode node, Queue<MapPoint> pQ)
         {
             if ((node == endNode) || (node == null))
@@ -130,6 +153,11 @@ namespace PathFinder
             Travel(node.GetLightestNeighbor(), pQ);
         }
 
+        /// <summary>
+        /// Visits a node, weighs it, and add its
+        /// neighbors to the queue to be visited.
+        /// </summary>
+        /// <param name="node"></param>
         private void Traverse(GraphNode node)
         {
             foreach (GraphNode neighbor in node.Neighbors) {
@@ -152,7 +180,12 @@ namespace PathFinder
         }
 
 
-
+        /// <summary>
+        /// Returns true if p is located in rect.
+        /// </summary>
+        /// <param name="p"></param>
+        /// <param name="rects"></param>
+        /// <returns></returns>
         private bool InRect(Point p, Queue<Rect> rects)
         {
             foreach (Rect rect in rects)

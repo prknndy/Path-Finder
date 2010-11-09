@@ -21,32 +21,55 @@ namespace PathFinder
         private const int ADD_END = 4;
         private const int PATH_FINDING = 5;
 
-
-        private const int GRID_SPACING = 20;
+        private const int MIN_WIDTH = 150;
+        private const int MIN_FOR_SHOW_WEIGHT = 20;
+        private const int MIN_FOR_SHOW_GRID = 10;
         private const string defaultStatus = "Use the buttons above to add obstacles and path points";
 
-        private Point lastPoint;
+        private Point lastPoint; // stores the first mouse click when creating an obstacle
         private MapPoint StartPoint;
         private MapPoint EndPoint;
-
+        private int gridSpacing;
+        /// <summary>
+        /// List of rectangles that represent obstacles.
+        /// </summary>
         Queue<Rect> rects;
+        /// <summary>
+        /// List of map points to be rendered.
+        /// </summary>
         List<MapPoint> points;
+   
+        // TODO: Handle below more appropriately
         LinkedList<GraphNode> nodes;
 
-        public Form1()
+        public Form1(int width, int height, int resolution)
         {
+            
             InitializeComponent();
+            
+            // reset picture + form size based on inputs
+            this.pictureBox1.Size = new System.Drawing.Size(width, height);
+            if (width < MIN_WIDTH)
+                width = MIN_WIDTH;
+            this.ClientSize = new System.Drawing.Size(width+160, height+40);
+            gridSpacing = resolution;
+
             rects = new Queue<Rect>();
             points = new List<MapPoint>();
             toolStripStatusLabel1.Text = defaultStatus;
-            appStatus = 0;
+            appStatus = IDLE;
            
         }
 
+        /// <summary>
+        /// Snaps a mouse event to the grid and returns the grid point.
+        /// </summary>
+        /// <param name="e"></param>
+        /// <returns></returns>
         private Point getGridPoint(MouseEventArgs e)
         {
-            int x = (e.X / GRID_SPACING) * GRID_SPACING;
-            int y = (e.Y / GRID_SPACING) * GRID_SPACING;
+            int x = (e.X / gridSpacing) * gridSpacing;
+            int y = (e.Y / gridSpacing) * gridSpacing;
             Point p = new Point(x, y);
             return p;
         }
@@ -56,15 +79,17 @@ namespace PathFinder
             
             // Downcast eventargs
             MouseEventArgs mouseClick = (MouseEventArgs)e;
-
+            // Route mouse event based on current application status
             switch (appStatus)
             {
                 case ADD_RECT_START:
+                    // Create first point of new obstacle
                     lastPoint = getGridPoint(mouseClick);
                     appStatus = ADD_RECT_END;
                     toolStripStatusLabel1.Text = "Click to finish obstacle"; 
                     break;
                 case ADD_RECT_END:
+                    // Finish new obstacle
                     Point p = getGridPoint(mouseClick);
                     int x = p.X;
                     int y = p.Y;
@@ -96,6 +121,7 @@ namespace PathFinder
                     toolStripStatusLabel1.Text = defaultStatus;
                     break;
                 case ADD_START:
+                    // Add path start point
                     if (StartPoint == null)
                     {
                         StartPoint = new MapPoint(getGridPoint(mouseClick), false, Color.Blue);
@@ -105,6 +131,7 @@ namespace PathFinder
                     }
                     break;
                 case ADD_END:
+                    // Add path end point
                     if (EndPoint == null)
                     {
                         EndPoint = new MapPoint(getGridPoint(mouseClick), false, Color.Red);
@@ -116,6 +143,7 @@ namespace PathFinder
                     
 
             }
+            // Redraw the pictureBox
             pictureBox1.Invalidate();
             
         }
@@ -126,16 +154,19 @@ namespace PathFinder
 
             SolidBrush greenBrush = new SolidBrush(Color.Green);
             Pen blackPen = new Pen(Color.Black, 1);
-            // Draw grid
-            for (int x = 0; x < pictureBox1.Width; x += GRID_SPACING)
+            if (this.gridSpacing > MIN_FOR_SHOW_GRID)
             {
-                g.DrawLine(blackPen, x, 0, x, pictureBox1.Height);
+                // Draw grid if the spacing is large enough it won't be too
+                // crowded.
+                for (int x = 0; x < pictureBox1.Width; x += gridSpacing)
+                {
+                    g.DrawLine(blackPen, x, 0, x, pictureBox1.Height);
+                }
+                for (int y = 0; y < pictureBox1.Height; y += gridSpacing)
+                {
+                    g.DrawLine(blackPen, 0, y, pictureBox1.Width, y);
+                }
             }
-            for (int y = 0; y < pictureBox1.Height; y += GRID_SPACING)
-            {
-                g.DrawLine(blackPen, 0, y, pictureBox1.Width, y);
-            }
-
             // Draw obstacles
             foreach (Rect rect in rects)
             {
@@ -146,9 +177,9 @@ namespace PathFinder
             {
                 DrawMapPoint(point, g);
             }
-            // Draw weights
-            if (nodes != null)
+            if ((nodes != null) && (gridSpacing > MIN_FOR_SHOW_WEIGHT))
             {
+                // Draw nodes' weight numbers if the spacing is large enough
                 Font drawFont = new Font("Arial", 12);
                 SolidBrush drawBrush = new SolidBrush(Color.Black);
 
@@ -159,7 +190,11 @@ namespace PathFinder
                 }
             }
         }
-
+        /// <summary>
+        /// Draws a single MapPoint point in Graphics component g.
+        /// </summary>
+        /// <param name="point"></param>
+        /// <param name="g"></param>
         private void DrawMapPoint(MapPoint point, Graphics g)
         {
             SolidBrush pointBrush = new SolidBrush(point.MyColor);
@@ -195,18 +230,21 @@ namespace PathFinder
                 FindPath();
             }
         }
-
+        /// <summary>
+        /// Creates a mesh from the current grid and finds the path.
+        /// </summary>
         private void FindPath()
         {
-            Mesh mesh = new Mesh(pictureBox1.Width, pictureBox1.Height, GRID_SPACING, rects);
-
+            Mesh mesh = new Mesh(pictureBox1.Width, pictureBox1.Height, gridSpacing, rects);
+            // Generate the mesh and weigh the nodes
             nodes = mesh.WeighGraph(StartPoint, EndPoint);
-
+            // If the mesh creation was succesful, find the path and add
+            // it's point to the point list.
             if (nodes != null)
             {
                 points.AddRange(mesh.FindPath());
             }
-
+            // Redraw
             pictureBox1.Invalidate();
 
         }
