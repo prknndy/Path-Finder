@@ -1,0 +1,9 @@
+*.deb *.aps *.vbw *.suo *.obj *.ncb *.plg *.bsc *.ilk
+*.exp *.sbr *.opt *.pdb *.idb *.pch *.res *.user
+
+*\obj
+*\bin
+*\Debug
+*\Release
+
+Thumbs.db
